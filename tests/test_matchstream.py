@@ -29,14 +29,14 @@ def test_percent_tolerance():
 
 
 def test_arabic_keys_and_amounts_are_normalized():
-    a = {"رقم": ["INV-١٢٣", "‏INV-124‏"], "المبلغ": ["١٬٢٥٠٫٥٠", "(100.00)"]}
-    b = {"ref": ["INV-123", "INV-124"], "amt": [1250.5, -100.0]}
-    summary, _ = run(a, b, on=("رقم", "ref"), amount=("المبلغ", "amt"))
+    a = {"رقم الطلب": ["ORD-١٢٣", "‏ORD-124‏"], "الكمية": ["١٬٢٥٠٫٥٠", "(100.00)"]}
+    b = {"ref": ["ORD-123", "ORD-124"], "qty": [1250.5, -100.0]}
+    summary, _ = run(a, b, on=("رقم الطلب", "ref"), amount=("الكمية", "qty"))
     assert summary["counts"]["matched"] == 2
 
 
 def test_normalize_off_compares_raw_keys():
-    summary, _ = run({"k": ["INV-١٢٣"]}, {"k": ["INV-123"]}, on="k", normalize=False)
+    summary, _ = run({"k": ["ORD-١٢٣"]}, {"k": ["ORD-123"]}, on="k", normalize=False)
     assert summary["counts"]["only_in_a"] == 1
 
 
@@ -68,12 +68,12 @@ def test_fuzzy_pairs_leftover_keys_once():
 # ── no shared key: amount + date window ────────────────────────────────────────
 
 def test_amount_and_date_window_picks_closest_date_one_to_one():
-    bank = {"date": ["2025-03-01", "2025-03-05", "2025-03-20"], "amount": ["100.00", "100.00", "75.50"]}
-    ledger = {"posted": ["04/03/2025", "02/03/2025", "01/03/2025"], "debit": [100.0, 100.0, 80.0]}
-    summary, df = run(bank, ledger, amount=("amount", "debit"), date=("date", "posted"), days=3)
+    sent = {"date": ["2025-03-01", "2025-03-05", "2025-03-20"], "weight_kg": ["100.00", "100.00", "75.50"]}
+    received = {"received": ["04/03/2025", "02/03/2025", "01/03/2025"], "weight": [100.0, 100.0, 80.0]}
+    summary, df = run(sent, received, amount=("weight_kg", "weight"), date=("date", "received"), days=3)
     assert summary["mode"] == "amount+date"
     m = df[df.status == "matched"].sort_values("row_a")
-    assert m.posted_b.tolist() == ["02/03/2025", "04/03/2025"]  # 1 Mar ↔ 2 Mar, 5 Mar ↔ 4 Mar
+    assert m.received_b.tolist() == ["02/03/2025", "04/03/2025"]  # 1 Mar ↔ 2 Mar, 5 Mar ↔ 4 Mar
     assert m.days_apart.tolist() == [1, -1]
     assert summary["counts"]["only_in_a"] == 1 and summary["counts"]["only_in_b"] == 1
 
@@ -137,7 +137,7 @@ def test_sql_fast_paths_agree_with_python_parsers():
 
     from matchstream import _date, _expr, _key, _key_expr, _register
 
-    values = ["ABC-1", "abc def", " padded ", "NaN", "null", "None", "INV-١٢٣", "‏X‏", "x y",
+    values = ["ABC-1", "abc def", " padded ", "NaN", "null", "None", "ORD-١٢٣", "‏X‏", "x y",
               "", "-12.5", "1,250.00", "(5)", "١٢٣", "2025-03-14", "14/03/2025", "2025-02-30", "12a"]
     con = duckdb.connect()
     _register(con)

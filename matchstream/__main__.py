@@ -1,5 +1,5 @@
-"""matchstream A B [--on ref | --on ref:reference] [--amount amount[:debit]] [--tolerance 0.01|1%]
-                  [--date date[:posted] --days 3] [--fuzzy 0.9] [--out result.csv|.parquet]"""
+"""matchstream A B [--on ref | --on ref:reference] [--amount qty[:units]] [--tolerance 0.01|1%]
+                  [--date date[:received] --days 3] [--fuzzy 0.9] [--out result.csv|.parquet]"""
 import argparse
 import json
 import sys

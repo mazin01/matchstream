@@ -17,7 +17,7 @@ OUT = Path(__file__).parent / "results.md"
 
 def keyed_data(n: int, seed: int = 1):
     rng = random.Random(seed)
-    a = pd.DataFrame({"ref": [f"INV-{i:08d}" for i in range(n)],
+    a = pd.DataFrame({"ref": [f"ORD-{i:08d}" for i in range(n)],
                       "amount": [round(rng.uniform(1, 10_000), 2) for _ in range(n)]})
     keep, add = int(n * 0.95), int(n * 0.05)
     b = pd.concat([a.iloc[:keep], pd.DataFrame({"ref": [f"EXT-{i:08d}" for i in range(add)],
@@ -35,16 +35,16 @@ def pandas_reconcile(a, b):
 
 
 def window_data(n: int, seed: int = 2):
-    """Bank vs ledger with no shared key: same amounts, ledger dates 0-2 days later,
-    and 20% recurring amounts (same value, different days) to make it ambiguous."""
+    """Dispatches vs deliveries with no shared key: same weights, deliveries 0-2 days later,
+    and 20% standard 99 kg pallets (same value, different days) to make it ambiguous."""
     rng = random.Random(seed)
     start = pd.Timestamp("2025-01-01")
-    amounts = [99.0 if rng.random() < 0.2 else round(rng.uniform(1, 5_000), 2) for _ in range(n)]
+    weights = [99.0 if rng.random() < 0.2 else round(rng.uniform(1, 5_000), 2) for _ in range(n)]
     days = [rng.randrange(365) for _ in range(n)]
-    bank = pd.DataFrame({"id": range(n), "date": [start + pd.Timedelta(d, "D") for d in days], "amount": amounts})
-    ledger = pd.DataFrame({"id": range(n), "posted": [start + pd.Timedelta(d + rng.randrange(3), "D") for d in days],
-                           "debit": amounts}).sample(frac=1, random_state=seed)
-    return bank, ledger
+    sent = pd.DataFrame({"id": range(n), "date": [start + pd.Timedelta(d, "D") for d in days], "weight_kg": weights})
+    received = pd.DataFrame({"id": range(n), "received": [start + pd.Timedelta(d + rng.randrange(3), "D") for d in days],
+                             "weight": weights}).sample(frac=1, random_state=seed)
+    return sent, received
 
 
 lines = ["| scenario | rows (a × b) | matchstream | pandas merge | notes |", "|---|---:|---:|---:|---|"]
@@ -62,15 +62,15 @@ for n in ([100_000] if QUICK else [100_000, 1_000_000]):
     print(lines[-1])
 
 for n in ([20_000] if QUICK else [100_000]):
-    bank, ledger = window_data(n)
-    with ms.reconcile(bank, ledger, amount=("amount", "debit"), date=("date", "posted"), days=3) as r:
+    sent, received = window_data(n)
+    with ms.reconcile(sent, received, amount=("weight_kg", "weight"), date=("date", "received"), days=3) as r:
         df = r.df("matched")
         secs, matched = r.summary["seconds"], len(df)
     correct = int((df.id_a == df.id_b).sum())
-    unique = df[df.amount_a != 99.0]
-    lines.append(f"| amount + date, no key | {n:,} × {n:,} | {secs:.2f}s | n/a | {matched / n:.1%} paired; "
-                 f"true partner for {(unique.id_a == unique.id_b).mean():.1%} of unique amounts, "
-                 f"{correct / n:.1%} overall (20% are identical recurring amounts) |")
+    unique = df[df.weight_kg_a != 99.0]
+    lines.append(f"| weight + date, no key | {n:,} × {n:,} | {secs:.2f}s | n/a | {matched / n:.1%} paired; "
+                 f"true partner for {(unique.id_a == unique.id_b).mean():.1%} of unique weights, "
+                 f"{correct / n:.1%} overall (20% are identical 99 kg pallets) |")
     print(lines[-1])
 
 OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")

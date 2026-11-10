@@ -2,7 +2,7 @@
 
     import matchstream as ms
 
-    r = ms.reconcile("ledger.csv", "bank.csv", on="ref", amount="amount", tolerance=0.01)
+    r = ms.reconcile("orders.csv", "shipments.csv", on="order_id", amount="qty")
     r.summary              # counts and totals per status
     r.df()                 # one row per pair or leftover, with status
     r.to_csv("out.csv")
